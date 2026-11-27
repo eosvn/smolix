@@ -55,7 +55,7 @@ defaults write dev.smolix.Smolix debugLogging -bool true   # rồi mở lại Sm
 
 | Tùy chọn | Ý nghĩa | Mặc định |
 |---|---|---|
-| Bật cuộn mượt | Tắt thì chuột cuộn như mặc định của macOS | Bật |
+| Cuộn mượt | Công tắc đầu cửa sổ. Tắt thì chuột cuộn như mặc định của macOS | Bật |
 | Đảo chiều cuộn chuột | Chỉ đảo chuột, không ảnh hưởng trackpad | Tắt |
 | Tốc độ trong Terminal | Hệ số quãng cuộn khi con trỏ nằm trên cửa sổ terminal | 70% |
 | Bước cuộn | Số pixel cho mỗi nấc bánh xe khi cuộn chậm | 52 px |
