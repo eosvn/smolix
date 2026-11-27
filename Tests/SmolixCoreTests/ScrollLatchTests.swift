@@ -1,52 +1,49 @@
-import CoreGraphics
 import XCTest
 @testable import SmolixCore
 
 final class ScrollLatchTests: XCTestCase {
     func testFirstWheelNeverDropsAnything() {
         var latch = ScrollLatch()
-        XCTAssertFalse(latch.wheel(at: CGPoint(x: 100, y: 100)))
-        XCTAssertEqual(latch.anchor, CGPoint(x: 100, y: 100))
+        XCTAssertFalse(latch.wheel(over: 7))
+        XCTAssertEqual(latch.window, 7)
     }
 
-    func testHandJitterKeepsTheGlide() {
+    func testMovingAroundTheSameWindowKeepsTheGlide() {
         var latch = ScrollLatch()
-        _ = latch.wheel(at: CGPoint(x: 100, y: 100))
-        XCTAssertFalse(latch.hasMoved(to: CGPoint(x: 103, y: 98)))
-        XCTAssertFalse(latch.wheel(at: CGPoint(x: 104, y: 103)))
+        _ = latch.wheel(over: 7)
+        // The pointer can travel anywhere inside the window: the window is all that counts.
+        XCTAssertFalse(latch.hasLeft(over: 7))
+        XCTAssertFalse(latch.wheel(over: 7))
     }
 
-    func testLeavingTheSpotEndsTheGlide() {
+    func testMovingOntoAnotherWindowEndsTheGlide() {
         var latch = ScrollLatch()
-        _ = latch.wheel(at: CGPoint(x: 100, y: 100))
-        XCTAssertTrue(latch.hasMoved(to: CGPoint(x: 100, y: 100 + ScrollLatch.radius + 1)))
-        XCTAssertTrue(latch.hasMoved(to: CGPoint(x: 400, y: 100)))
+        _ = latch.wheel(over: 7)
+        XCTAssertTrue(latch.hasLeft(over: 9))
     }
 
-    func testWheelSomewhereElseDropsTheOldGlideAndMovesTheAnchor() {
+    func testWheelOverAnotherWindowDropsTheOldGlideAndMovesTheLatch() {
         var latch = ScrollLatch()
-        _ = latch.wheel(at: CGPoint(x: 100, y: 100))
-        XCTAssertTrue(latch.wheel(at: CGPoint(x: 300, y: 100)))
-        XCTAssertEqual(latch.anchor, CGPoint(x: 300, y: 100))
-        XCTAssertFalse(latch.hasMoved(to: CGPoint(x: 302, y: 101)))
+        _ = latch.wheel(over: 7)
+        XCTAssertTrue(latch.wheel(over: 9))
+        XCTAssertEqual(latch.window, 9)
+        XCTAssertFalse(latch.hasLeft(over: 9))
     }
 
-    func testAnchorFollowsSlowDriftWhileTheWheelKeepsTurning() {
+    func testUnknownWindowNeverStopsAGlide() {
         var latch = ScrollLatch()
-        // Each notch drifts 4 pt: never far from the previous notch, so nothing is dropped,
-        // even though the pointer ends up well away from where it started.
-        for i in 0...10 {
-            XCTAssertFalse(latch.wheel(at: CGPoint(x: 100 + Double(i) * 4, y: 100)))
-        }
-        XCTAssertFalse(latch.hasMoved(to: CGPoint(x: 140, y: 100)))
+        _ = latch.wheel(over: 7)
+        XCTAssertFalse(latch.hasLeft(over: nil))
+        XCTAssertFalse(latch.wheel(over: nil))
+        XCTAssertEqual(latch.window, 7, "an unknown window keeps the latch where it was")
     }
 
     func testReleasedLatchIgnoresMovement() {
         var latch = ScrollLatch()
-        _ = latch.wheel(at: CGPoint(x: 100, y: 100))
+        _ = latch.wheel(over: 7)
         latch.release()
-        XCTAssertNil(latch.anchor)
-        XCTAssertFalse(latch.hasMoved(to: CGPoint(x: 900, y: 900)))
-        XCTAssertFalse(latch.wheel(at: CGPoint(x: 900, y: 900)))
+        XCTAssertNil(latch.window)
+        XCTAssertFalse(latch.hasLeft(over: 9))
+        XCTAssertFalse(latch.wheel(over: 9))
     }
 }

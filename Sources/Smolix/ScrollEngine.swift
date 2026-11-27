@@ -51,8 +51,10 @@ final class ScrollEngine: NSObject, ObservableObject {
     private var axisX = SmoothAxis()
     /// 0…1: how fast the wheel was spun during the current animation (drives extra glide).
     private var glideBoost: Double = 0
-    /// Stops a glide once the pointer leaves the spot where the wheel was turned.
+    /// Stops a glide once the pointer reaches a different window from the one being scrolled.
     private var latch = ScrollLatch()
+    /// Last window-under-pointer lookup, reused while the pointer stays put.
+    private var windowProbe: (point: CGPoint, window: Int?)?
     private var postFlags: CGEventFlags = []
     private let eventSource: CGEventSource?
 
@@ -235,8 +237,8 @@ final class ScrollEngine: NSObject, ObservableObject {
             dy = 0
         }
 
-        // Turned somewhere else: the glide still in flight belongs to the old spot.
-        if latch.wheel(at: NSEvent.mouseLocation) {
+        // Turned over another window: the glide still in flight belongs to the old one.
+        if latch.wheel(over: windowUnderPointer(fresh: true)) {
             axisY.reset()
             axisX.reset()
             glideBoost = 0
@@ -300,9 +302,10 @@ final class ScrollEngine: NSObject, ObservableObject {
             resetAnimation()
             return
         }
-        // The pointer moved on: stop rather than scroll whatever it is over now.
-        if latch.hasMoved(to: NSEvent.mouseLocation) {
-            if settings.debugLogging { log.debug("Pointer left the scroll spot — glide stopped") }
+        // The pointer reached another window: stop rather than scroll that window instead.
+        // Moving around inside the scrolled window is fine and keeps the glide going.
+        if latch.hasLeft(over: windowUnderPointer()) {
+            if settings.debugLogging { log.debug("Pointer moved to another window — glide stopped") }
             resetAnimation()
             return
         }
@@ -331,6 +334,19 @@ final class ScrollEngine: NSObject, ObservableObject {
         let px = axisX.advance(fraction: 1)
         if py != 0 || px != 0 { post(dy: py, dx: px) }
         latch.release()
+    }
+
+    /// Window-server number of the window under the pointer, or nil if there is none.
+    /// A lookup costs about 70 µs, so animation frames reuse the last one while the pointer
+    /// stays put. Wheel events always look again (`fresh`): windows may have been switched
+    /// under a still pointer since the last glide.
+    private func windowUnderPointer(fresh: Bool = false) -> Int? {
+        let point = NSEvent.mouseLocation
+        if !fresh, let windowProbe, windowProbe.point == point { return windowProbe.window }
+        let number = NSWindow.windowNumber(at: point, belowWindowWithWindowNumber: 0)
+        let window = number > 0 ? number : nil
+        windowProbe = (point, window)
+        return window
     }
 
     private func post(dy: Int32, dx: Int32) {
