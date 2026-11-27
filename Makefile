@@ -1,10 +1,13 @@
-.PHONY: app install test icon signing clean logs
+.PHONY: app install dmg test icon signing clean logs
 
 app:        ## Build build/Smolix.app
 	./scripts/build-app.sh
 
 install:    ## Build, copy to /Applications and launch
 	./scripts/install.sh
+
+dmg:        ## Universal (Apple Silicon + Intel) build packed as build/Smolix-<version>.dmg
+	./scripts/make-dmg.sh
 
 test:       ## Run unit tests
 	swift test

@@ -8,22 +8,36 @@ Cuộn chuột mượt cho macOS: app nhỏ chạy trên thanh menu, thay thế 
 - Trong terminal (iTerm2, Terminal, Ghostty, Warp, WezTerm, Alacritty, kitty…) quãng cuộn được nhân với **Tốc độ trong Terminal**
   (mặc định 70%): iTerm2 + tmux biến mỗi vài pixel thành một lần cuộn nhiều dòng, nên cùng số pixel sẽ đi xa hơn hẳn trình duyệt.
 
-## Cài đặt / cập nhật
+## Tải về và cài đặt
+
+Yêu cầu: macOS 14 trở lên, Mac chip Apple hoặc Intel.
+
+1. Tải file **`Smolix-x.y.z.dmg`** mới nhất ở trang [Releases](https://github.com/eosvn/smolix/releases/latest).
+2. Mở file `.dmg`, kéo **Smolix** vào thư mục **Applications**.
+3. Mở Smolix từ Applications. macOS sẽ hỏi quyền **Trợ năng**: vào
+   Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Trợ năng, bật Smolix.
+   Sau tối đa 2 giây app tự hoạt động, không cần mở lại.
+4. Biểu tượng con chuột trên thanh menu › **Cài đặt…** để chỉnh cảm giác cuộn và bật **Khởi động cùng máy**.
+
+> Đang dùng Mos, SmoothScroll hay app cuộn mượt khác? Hãy tắt chúng (và gỡ khỏi Mục đăng nhập)
+> để hai app không cùng xử lý cuộn chuột.
+
+Cập nhật: tải bản `.dmg` mới, kéo đè lên bản cũ. Quyền Trợ năng được giữ nguyên.
+
+## Build từ mã nguồn
+
+Cần Xcode hoặc Command Line Tools (Swift 6).
 
 ```sh
 make install     # build, ký, chép vào /Applications/Smolix.app và mở
 ```
-
-Lần đầu mở, macOS sẽ hỏi quyền **Trợ năng** (Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Trợ năng).
-Bật Smolix, sau tối đa 2 giây app tự hoạt động, không cần mở lại.
-
-> Tắt Mos trước khi dùng Smolix (và gỡ Mos khỏi Mục đăng nhập) để hai app không cùng xử lý cuộn chuột.
 
 Các lệnh khác:
 
 | Lệnh | Việc |
 |---|---|
 | `make app` | Chỉ build `build/Smolix.app` |
+| `make dmg` | Build universal (Apple Silicon + Intel), đóng gói `build/Smolix-<version>.dmg`, ký và notarize nếu có Developer ID |
 | `make test` | Chạy unit test phần tính toán cuộn |
 | `make logs` | Xem log trực tiếp (tap bị macOS tắt/bật lại, sự kiện bánh xe khi bật debug) |
 | `make icon` | Vẽ lại icon app |
@@ -73,10 +87,28 @@ App/                  Info.plist, AppIcon.icns
 scripts/              build-app.sh, install.sh, setup-signing.sh, make-icon.swift
 ```
 
-### Ký code
+### Ký code và phát hành
+
+Script build tự chọn chứng chỉ:
+
+1. **Developer ID Application** (Apple Developer Program) nếu có trong keychain. Đây là chứng chỉ dùng cho
+   bản phát hành: `make dmg` sẽ ký, gửi Apple notarize và staple vé vào `.dmg`, nên máy nào mở cũng
+   không bị Gatekeeper chặn. Cần thiết lập một lần:
+   ```sh
+   xcrun notarytool store-credentials smolix-notary --apple-id <apple-id> --team-id <TEAM_ID>
+   ```
+   (mật khẩu là app-specific password tạo ở account.apple.com).
+2. Nếu không có, dùng chứng chỉ tự ký **"Smolix Local Signing"** (chỉ hợp để build cho chính máy mình).
+
+Đăng bản mới: tăng `CFBundleShortVersionString`/`CFBundleVersion` trong `App/Info.plist`, chạy `make dmg`,
+rồi `gh release create v<version> build/Smolix-<version>.dmg`.
 
 macOS gắn quyền Trợ năng với chữ ký của app. Build ký ad-hoc sẽ đổi danh tính sau mỗi lần build,
 khiến quyền âm thầm mất tác dụng. `scripts/setup-signing.sh` (tự chạy ở lần build đầu) tạo một
 chứng chỉ tự ký **"Smolix Local Signing"** trong keychain riêng `.signing/smolix.keychain-db`
 (không đụng keychain đăng nhập), nên quyền được giữ qua các lần build lại.
 Xóa thư mục `.signing/` thì lần build sau sẽ tạo chứng chỉ mới và phải cấp quyền lại.
+
+## Giấy phép
+
+[MIT](LICENSE)
