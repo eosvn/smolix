@@ -4,3 +4,4 @@ build/
 .signing/
 *.xcodeproj
 .DS_Store
+.vscode/
