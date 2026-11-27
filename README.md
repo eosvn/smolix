@@ -1,0 +1,82 @@
+# Smolix
+
+Cuộn chuột mượt cho macOS: app nhỏ chạy trên thanh menu, thay thế Mos.
+
+- Chỉ làm mượt **chuột có bánh xe**. Trackpad và Magic Mouse giữ nguyên.
+- `Cmd`/`Ctrl` + cuộn (phóng to/thu nhỏ) được giữ nguyên như hệ thống gửi.
+- `Shift` + cuộn → cuộn ngang mượt.
+- Trong terminal (iTerm2, Terminal, Ghostty, Warp, WezTerm, Alacritty, kitty…) quãng cuộn được nhân với **Tốc độ trong Terminal**
+  (mặc định 70%): iTerm2 + tmux biến mỗi vài pixel thành một lần cuộn nhiều dòng, nên cùng số pixel sẽ đi xa hơn hẳn trình duyệt.
+
+## Cài đặt / cập nhật
+
+```sh
+make install     # build, ký, chép vào /Applications/Smolix.app và mở
+```
+
+Lần đầu mở, macOS sẽ hỏi quyền **Trợ năng** (Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Trợ năng).
+Bật Smolix, sau tối đa 2 giây app tự hoạt động, không cần mở lại.
+
+> Tắt Mos trước khi dùng Smolix (và gỡ Mos khỏi Mục đăng nhập) để hai app không cùng xử lý cuộn chuột.
+
+Các lệnh khác:
+
+| Lệnh | Việc |
+|---|---|
+| `make app` | Chỉ build `build/Smolix.app` |
+| `make test` | Chạy unit test phần tính toán cuộn |
+| `make logs` | Xem log trực tiếp (tap bị macOS tắt/bật lại, sự kiện bánh xe khi bật debug) |
+| `make icon` | Vẽ lại icon app |
+
+Bật log chi tiết từng nấc bánh xe (để tinh chỉnh):
+
+```sh
+defaults write dev.smolix.Smolix debugLogging -bool true   # rồi mở lại Smolix, chạy `make logs`
+```
+
+## Tùy chọn
+
+| Tùy chọn | Ý nghĩa | Mặc định |
+|---|---|---|
+| Bật cuộn mượt | Tắt thì chuột cuộn như mặc định của macOS | Bật |
+| Đảo chiều cuộn chuột | Chỉ đảo chuột, không ảnh hưởng trackpad | Tắt |
+| Tốc độ trong Terminal | Hệ số quãng cuộn khi con trỏ nằm trên cửa sổ terminal | 70% |
+| Bước cuộn | Số pixel cho mỗi nấc bánh xe khi cuộn chậm | 52 px |
+| Tăng tốc | Quay bánh xe nhanh thì mỗi nấc đi xa hơn (dựa trên gia tốc cuộn của macOS). 0 = mỗi nấc luôn đúng bằng bước cuộn | ×1.00 |
+| Độ mượt | Thời gian để một lần cuộn đi được ~95% quãng đường | 320 ms |
+| Trượt khi cuộn nhanh | Quay bánh xe nhanh thì thời gian trượt dài thêm tối đa bấy nhiêu %; cuộn chậm không đổi | +100% |
+| Khởi động cùng máy | Dùng Mục đăng nhập của macOS | Tắt |
+| Ẩn biểu tượng | Ẩn icon trên thanh menu; mở lại app từ Applications để vào cài đặt | Tắt |
+
+## Thiết kế để không tự thoát
+
+Mos 3.5.0 crash (SIGABRT) bên trong `SkyLight processEventTapData` với lỗi
+"pointer being freed was not allocated", tức là lỗi quản lý bộ nhớ quanh event tap.
+Smolix tránh loại lỗi đó như sau:
+
+- Mọi thứ (event tap, hoạt ảnh, cài đặt) chạy trên **main thread**: không lock, không data race.
+- Không bao giờ giữ lại `CGEvent` hay `CGEventTapProxy` sau khi callback trả về.
+  Callback chỉ trả event gốc (cho qua) hoặc `nil` (nuốt). Cuộn mượt được phát bằng
+  event **mới** qua `CGEvent.post(tap:)`, không dùng `tapPostEvent` với proxy cũ.
+- Một bộ giám sát chạy mỗi 2 giây: tap bị macOS tắt thì bật lại, tap hỏng thì tạo lại,
+  quyền Trợ năng bị thu hồi thì gỡ tap và chờ được cấp lại.
+  Ngoài ra tap được tạo lại sau khi máy thức dậy hoặc chuyển phiên người dùng.
+- Hoạt ảnh đồng bộ với tần số quét màn hình (`CADisplayLink`, 120 Hz trên ProMotion), dừng hẳn
+  khi không cuộn nên không tốn pin.
+
+## Cấu trúc
+
+```
+Sources/SmolixCore/   Tính toán thuần (quãng đường mỗi nấc, ease-out theo thời gian thực), có unit test
+Sources/Smolix/       App: ScrollEngine (event tap + hoạt ảnh), menu bar, cửa sổ cài đặt SwiftUI
+App/                  Info.plist, AppIcon.icns
+scripts/              build-app.sh, install.sh, setup-signing.sh, make-icon.swift
+```
+
+### Ký code
+
+macOS gắn quyền Trợ năng với chữ ký của app. Build ký ad-hoc sẽ đổi danh tính sau mỗi lần build,
+khiến quyền âm thầm mất tác dụng. `scripts/setup-signing.sh` (tự chạy ở lần build đầu) tạo một
+chứng chỉ tự ký **"Smolix Local Signing"** trong keychain riêng `.signing/smolix.keychain-db`
+(không đụng keychain đăng nhập), nên quyền được giữ qua các lần build lại.
+Xóa thư mục `.signing/` thì lần build sau sẽ tạo chứng chỉ mới và phải cấp quyền lại.
