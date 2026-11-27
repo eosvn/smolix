@@ -51,6 +51,8 @@ final class ScrollEngine: NSObject, ObservableObject {
     private var axisX = SmoothAxis()
     /// 0…1: how fast the wheel was spun during the current animation (drives extra glide).
     private var glideBoost: Double = 0
+    /// Stops a glide once the pointer leaves the spot where the wheel was turned.
+    private var latch = ScrollLatch()
     private var postFlags: CGEventFlags = []
     private let eventSource: CGEventSource?
 
@@ -233,6 +235,13 @@ final class ScrollEngine: NSObject, ObservableObject {
             dy = 0
         }
 
+        // Turned somewhere else: the glide still in flight belongs to the old spot.
+        if latch.wheel(at: NSEvent.mouseLocation) {
+            axisY.reset()
+            axisX.reset()
+            glideBoost = 0
+        }
+
         let multiplier: Double = (settings.reverseEnabled ? -1 : 1) * distanceScale
         let parameters = settings.parameters
         if dy != 0 { axisY.add(multiplier * ScrollMath.distance(lines: dy, parameters: parameters)) }
@@ -291,6 +300,12 @@ final class ScrollEngine: NSObject, ObservableObject {
             resetAnimation()
             return
         }
+        // The pointer moved on: stop rather than scroll whatever it is over now.
+        if latch.hasMoved(to: NSEvent.mouseLocation) {
+            if settings.debugLogging { log.debug("Pointer left the scroll spot — glide stopped") }
+            resetAnimation()
+            return
+        }
         let now = link.timestamp
         var dt = lastFrameTime.map { now - $0 } ?? (link.targetTimestamp - link.timestamp)
         if !(dt > 0) { dt = 1.0 / 120 }
@@ -306,6 +321,7 @@ final class ScrollEngine: NSObject, ObservableObject {
             link.isPaused = true
             lastFrameTime = nil
             glideBoost = 0
+            latch.release()
         }
     }
 
@@ -314,6 +330,7 @@ final class ScrollEngine: NSObject, ObservableObject {
         let py = axisY.advance(fraction: 1)
         let px = axisX.advance(fraction: 1)
         if py != 0 || px != 0 { post(dy: py, dx: px) }
+        latch.release()
     }
 
     private func post(dy: Int32, dx: Int32) {
@@ -335,6 +352,7 @@ final class ScrollEngine: NSObject, ObservableObject {
         axisY.reset()
         axisX.reset()
         glideBoost = 0
+        latch.release()
         lastFrameTime = nil
         displayLink?.isPaused = true
     }
