@@ -19,9 +19,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.0</string>
+	<string>1.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
+	<string>3</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
@@ -32,11 +32,11 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Smolix — smooth scrolling for macOS</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 	<key>SUFeedURL</key>
 	<string>https://github.com/eosvn/smolix/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>o6Yt1IDExLuXFR6BAIFUWa3ds8dObdujU2by1ahy55I=</string>
-	<key>SUEnableAutomaticChecks</key>
-	<true/>
 </dict>
 </plist>
