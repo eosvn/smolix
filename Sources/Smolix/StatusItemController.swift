@@ -6,6 +6,7 @@ import Combine
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let settings: AppSettings
     private let engine: ScrollEngine
+    private let updater: Updater
     private let openSettings: () -> Void
     private let statusItem: NSStatusItem
     private var cancellables: Set<AnyCancellable> = []
@@ -14,10 +15,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let permissionItem = NSMenuItem()
     private let smoothItem = NSMenuItem()
     private let reverseItem = NSMenuItem()
+    private let updateItem = NSMenuItem()
 
-    init(settings: AppSettings, engine: ScrollEngine, openSettings: @escaping () -> Void) {
+    init(settings: AppSettings, engine: ScrollEngine, updater: Updater, openSettings: @escaping () -> Void) {
         self.settings = settings
         self.engine = engine
+        self.updater = updater
         self.openSettings = openSettings
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
@@ -66,6 +69,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
+        updateItem.target = self
+        updateItem.action = #selector(checkForUpdates)
+        menu.addItem(updateItem)
+
         let settingsItem = NSMenuItem(title: "Cài đặt…", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
@@ -89,6 +96,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         permissionItem.isHidden = engine.state != .needsPermission
         smoothItem.state = settings.smoothEnabled ? .on : .off
         reverseItem.state = settings.reverseEnabled ? .on : .off
+        if let version = updater.pendingVersion {
+            updateItem.title = "Cài bản cập nhật \(version)…"
+            updateItem.isEnabled = true
+        } else {
+            updateItem.title = "Kiểm tra cập nhật…"
+            updateItem.isEnabled = updater.canCheckForUpdates
+        }
     }
 
     private func applyAppearance(smooth: Bool, state: EngineState, hidden: Bool) {
@@ -99,6 +113,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func toggleSmooth() { settings.smoothEnabled.toggle() }
     @objc private func toggleReverse() { settings.reverseEnabled.toggle() }
     @objc private func showSettings() { openSettings() }
+    @objc private func checkForUpdates() { updater.checkForUpdates() }
     @objc private func openAccessibility() { Accessibility.openSystemSettings() }
     @objc private func quit() { NSApp.terminate(nil) }
 }

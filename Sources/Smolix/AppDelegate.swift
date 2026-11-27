@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settings = AppSettings()
     private lazy var engine = ScrollEngine(settings: settings)
     private lazy var settingsWindow = SettingsWindowController(settings: settings, engine: engine)
+    private let updater = Updater()
     private var statusItem: StatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -13,7 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        statusItem = StatusItemController(settings: settings, engine: engine) { [weak self] in
+        updater.start()
+        statusItem = StatusItemController(settings: settings, engine: engine, updater: updater) { [weak self] in
             self?.settingsWindow.show()
         }
 

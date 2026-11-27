@@ -1,4 +1,4 @@
-.PHONY: app install dmg test icon signing clean logs
+.PHONY: app install dmg release test icon signing clean logs
 
 app:        ## Build build/Smolix.app
 	./scripts/build-app.sh
@@ -8,6 +8,9 @@ install:    ## Build, copy to /Applications and launch
 
 dmg:        ## Universal (Apple Silicon + Intel) build packed as build/Smolix-<version>.dmg
 	./scripts/make-dmg.sh
+
+release:    ## Notarized DMG + signed Sparkle appcast, published as a GitHub release
+	./scripts/release.sh
 
 test:       ## Run unit tests
 	swift test

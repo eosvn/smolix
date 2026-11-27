@@ -22,7 +22,9 @@ Yêu cầu: macOS 14 trở lên, Mac chip Apple hoặc Intel.
 > Đang dùng Mos, SmoothScroll hay app cuộn mượt khác? Hãy tắt chúng (và gỡ khỏi Mục đăng nhập)
 > để hai app không cùng xử lý cuộn chuột.
 
-Cập nhật: tải bản `.dmg` mới, kéo đè lên bản cũ. Quyền Trợ năng được giữ nguyên.
+Cập nhật: từ bản 1.1.0, vào menu Smolix › **Kiểm tra cập nhật…** rồi bấm **Cài bản cập nhật**
+(Smolix cũng tự kiểm tra mỗi ngày). Đang dùng 1.0.0 thì tải bản `.dmg` mới, kéo đè lên bản cũ một lần.
+Quyền Trợ năng được giữ nguyên.
 
 ## Build từ mã nguồn
 
@@ -38,6 +40,7 @@ Các lệnh khác:
 |---|---|
 | `make app` | Chỉ build `build/Smolix.app` |
 | `make dmg` | Build universal (Apple Silicon + Intel), đóng gói `build/Smolix-<version>.dmg`, ký và notarize nếu có Developer ID |
+| `make release` | `make dmg` + tạo `appcast.xml` ký EdDSA cho bộ cập nhật trong app, đăng cả hai lên GitHub Release |
 | `make test` | Chạy unit test phần tính toán cuộn |
 | `make logs` | Xem log trực tiếp (tap bị macOS tắt/bật lại, sự kiện bánh xe khi bật debug) |
 | `make icon` | Vẽ lại icon app |
@@ -82,9 +85,10 @@ Smolix tránh loại lỗi đó như sau:
 
 ```
 Sources/SmolixCore/   Tính toán thuần (quãng đường mỗi nấc, ease-out theo thời gian thực), có unit test
-Sources/Smolix/       App: ScrollEngine (event tap + hoạt ảnh), menu bar, cửa sổ cài đặt SwiftUI
+Sources/Smolix/       App: ScrollEngine (event tap + hoạt ảnh), menu bar, cửa sổ cài đặt SwiftUI, Updater (Sparkle)
 App/                  Info.plist, AppIcon.icns
-scripts/              build-app.sh, install.sh, setup-signing.sh, make-icon.swift
+scripts/              build-app.sh, install.sh, make-dmg.sh, release.sh, setup-signing.sh, make-icon.swift
+ReleaseNotes/         Ghi chú từng phiên bản (hiện trong cửa sổ cập nhật và trên GitHub Release)
 ```
 
 ### Ký code và phát hành
@@ -100,8 +104,25 @@ Script build tự chọn chứng chỉ:
    (mật khẩu là app-specific password tạo ở account.apple.com).
 2. Nếu không có, dùng chứng chỉ tự ký **"Smolix Local Signing"** (chỉ hợp để build cho chính máy mình).
 
-Đăng bản mới: tăng `CFBundleShortVersionString`/`CFBundleVersion` trong `App/Info.plist`, chạy `make dmg`,
-rồi `gh release create v<version> build/Smolix-<version>.dmg`.
+### Đăng bản mới
+
+App tự cập nhật bằng [Sparkle](https://sparkle-project.org): nó đọc
+`https://github.com/eosvn/smolix/releases/latest/download/appcast.xml`, tức file `appcast.xml`
+đính kèm ở release mới nhất.
+
+1. Trong `App/Info.plist`: tăng `CFBundleShortVersionString` (ví dụ `1.2.0`) và **tăng `CFBundleVersion` thêm 1**.
+   Sparkle so sánh bằng `CFBundleVersion`.
+2. Viết `ReleaseNotes/<version>.md` (Markdown ngắn, hiện trong cửa sổ cập nhật).
+3. Commit, push, rồi `make release`. Lệnh này build, notarize, tạo `appcast.xml` ký EdDSA và đăng release.
+
+`appcast.xml` được ký bằng khóa EdDSA trong keychain đăng nhập (account `smolix`). Public key nằm ở
+`SUPublicEDKey` trong `Info.plist`. **Hãy sao lưu khóa này**: mất khóa thì không phát hành bản cập nhật
+được nữa, người dùng phải tự tải về cài lại.
+
+```sh
+.build/artifacts/sparkle/Sparkle/bin/generate_keys --account smolix -x smolix-sparkle-key.txt  # xuất khóa ra file, cất vào trình quản lý mật khẩu rồi xóa file
+.build/artifacts/sparkle/Sparkle/bin/generate_keys --account smolix -f smolix-sparkle-key.txt  # nạp lại trên máy khác
+```
 
 macOS gắn quyền Trợ năng với chữ ký của app. Build ký ad-hoc sẽ đổi danh tính sau mỗi lần build,
 khiến quyền âm thầm mất tác dụng. `scripts/setup-signing.sh` (tự chạy ở lần build đầu) tạo một
