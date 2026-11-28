@@ -12,6 +12,16 @@ Cuộn chuột mượt cho macOS: app nhỏ chạy trên thanh menu, thay thế 
 
 Yêu cầu: macOS 14 trở lên, Mac chip Apple hoặc Intel.
 
+**Cài bằng Homebrew:**
+
+```sh
+brew install --cask eosvn/tap/smolix
+```
+
+rồi làm tiếp từ bước 3 bên dưới.
+
+**Hoặc cài bằng tay:**
+
 1. Tải file **`Smolix-x.y.z.dmg`** mới nhất ở trang [Releases](https://github.com/eosvn/smolix/releases/latest).
 2. Mở file `.dmg`, kéo **Smolix** vào thư mục **Applications**.
 3. Mở Smolix từ Applications. macOS sẽ hỏi quyền **Trợ năng**: vào
@@ -24,7 +34,8 @@ Yêu cầu: macOS 14 trở lên, Mac chip Apple hoặc Intel.
 
 Cập nhật: từ bản 1.1.0, vào menu Smolix › **Kiểm tra cập nhật…** rồi bấm **Cài bản cập nhật**
 (Smolix cũng tự kiểm tra mỗi ngày). Đang dùng 1.0.0 thì tải bản `.dmg` mới, kéo đè lên bản cũ một lần.
-Quyền Trợ năng được giữ nguyên.
+Quyền Trợ năng được giữ nguyên. Cài qua Homebrew cũng cập nhật trong app như vậy. Vì thế `brew upgrade`
+bỏ qua Smolix, trừ khi chạy `brew upgrade --cask --greedy smolix`.
 
 ## Build từ mã nguồn
 
@@ -40,7 +51,7 @@ Các lệnh khác:
 |---|---|
 | `make app` | Chỉ build `build/Smolix.app` |
 | `make dmg` | Build universal (Apple Silicon + Intel), đóng gói `build/Smolix-<version>.dmg`, ký và notarize nếu có Developer ID |
-| `make release` | `make dmg` + tạo `appcast.xml` ký EdDSA cho bộ cập nhật trong app, đăng cả hai lên GitHub Release |
+| `make release` | `make dmg` + tạo `appcast.xml` ký EdDSA cho bộ cập nhật trong app, đăng cả hai lên GitHub Release, cập nhật cask Homebrew |
 | `make test` | Chạy unit test phần tính toán cuộn |
 | `make logs` | Xem log trực tiếp (tap bị macOS tắt/bật lại, sự kiện bánh xe khi bật debug) |
 | `make icon` | Vẽ lại icon app |
@@ -113,7 +124,9 @@ App tự cập nhật bằng [Sparkle](https://sparkle-project.org): nó đọc
 1. Trong `App/Info.plist`: tăng `CFBundleShortVersionString` (ví dụ `1.2.0`) và **tăng `CFBundleVersion` thêm 1**.
    Sparkle so sánh bằng `CFBundleVersion`.
 2. Viết `ReleaseNotes/<version>.md` (Markdown ngắn, hiện trong cửa sổ cập nhật).
-3. Commit, push, rồi `make release`. Lệnh này build, notarize, tạo `appcast.xml` ký EdDSA và đăng release.
+3. Commit, push, rồi `make release`. Lệnh này build, notarize, tạo `appcast.xml` ký EdDSA, đăng release,
+   rồi cập nhật version và sha256 trong cask Homebrew
+   ([eosvn/homebrew-tap](https://github.com/eosvn/homebrew-tap), file `Casks/smolix.rb`).
 
 `appcast.xml` được ký bằng khóa EdDSA trong keychain đăng nhập (account `smolix`). Public key nằm ở
 `SUPublicEDKey` trong `Info.plist`. **Hãy sao lưu khóa này**: mất khóa thì không phát hành bản cập nhật

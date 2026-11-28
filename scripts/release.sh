@@ -1,6 +1,7 @@
 #!/bin/bash
 # Publishes a new version on GitHub: a notarized DMG plus the Sparkle appcast that the in-app
-# updater reads (SUFeedURL points at releases/latest/download/appcast.xml).
+# updater reads (SUFeedURL points at releases/latest/download/appcast.xml), then bumps the
+# Homebrew cask in eosvn/homebrew-tap.
 #
 #   1. Bump CFBundleShortVersionString and CFBundleVersion (+1) in App/Info.plist
 #   2. Write ReleaseNotes/<version>.md (shown in the update window and on the GitHub release)
@@ -76,6 +77,7 @@ BODY="$STAGE/github-notes.md"
     echo "---"
     echo
     echo "**Cài mới:** tải \`Smolix-$VERSION.dmg\` bên dưới, mở ra và kéo Smolix vào Applications ([hướng dẫn](https://github.com/$REPO#tải-về-và-cài-đặt))."
+    echo "**Homebrew:** \`brew install --cask eosvn/tap/smolix\`"
     echo "**Đã có Smolix 1.1.0 trở lên:** menu Smolix › Kiểm tra cập nhật…"
     echo
     echo "macOS 14 trở lên · Apple Silicon và Intel · ký Developer ID, đã notarize"
@@ -97,3 +99,23 @@ gh release create "$TAG" "$DMG" "$STAGE/appcast.xml" \
     --latest
 
 echo "✓ https://github.com/$REPO/releases/tag/$TAG"
+
+# --- Homebrew cask -----------------------------------------------------------------------------
+# brew install --cask eosvn/tap/smolix reads Casks/smolix.rb in eosvn/homebrew-tap.
+bump_cask() {
+    local sha cask="$STAGE/smolix.rb"
+    sha=$(gh api "repos/$TAP_REPO/contents/$TAP_CASK" --jq .sha) || return 1
+    gh api "repos/$TAP_REPO/contents/$TAP_CASK" --jq .content | base64 -D \
+        | sed -e "s/^  version \".*\"/  version \"$VERSION\"/" -e "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" > "$cask"
+    grep -q "^  version \"$VERSION\"" "$cask" && grep -q "^  sha256 \"$SHA\"" "$cask" || return 1
+    gh api -X PUT "repos/$TAP_REPO/contents/$TAP_CASK" -f message="smolix $VERSION" \
+        -f content="$(base64 < "$cask")" -f sha="$sha" >/dev/null
+}
+TAP_REPO="eosvn/homebrew-tap"
+TAP_CASK="Casks/smolix.rb"
+echo "▸ Updating Homebrew cask ($TAP_REPO)"
+if bump_cask; then
+    echo "✓ brew install --cask eosvn/tap/smolix → $VERSION"
+else
+    echo "⚠ Couldn't update $TAP_REPO/$TAP_CASK — set version \"$VERSION\" and sha256 \"$SHA\" by hand"
+fi
